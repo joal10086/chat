@@ -28,7 +28,7 @@ public class MainUI {
 	private JTextField message;
 	
 	JButton btnConnect;
-	
+	JLabel connectedTo;
 	
 	//implicit data
 	private int nbtn=0;
@@ -80,6 +80,7 @@ public class MainUI {
 			cs = new MyClientSocket();
 			if(cs.GetConnection(ip,port)) { //tcp client connect to tcp server
 				System.out.println("tcp connected to:"+ip+","+port);
+				connectedTo.setText(ip);
 			}else {
 				System.out.println("tcp connected failed");
 			}
@@ -87,6 +88,7 @@ public class MainUI {
 			udpClient = new UDPClient();
 			if(udpClient.GetConnection(ip,port)) { //UDP client connect to UDP server
 				System.out.println("tcp connected to:"+ip+","+port);
+				connectedTo.setText(ip);
 			}else {
 				System.out.println("tcp connected failed");
 			}
@@ -118,11 +120,51 @@ public class MainUI {
 	 */
 	public void Receiving() {
 		if(nbtn==1) {//tcp client
-			System.out.println("tcp client sending..."+message);
-			cs.SendInfor(message);
+
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+			
+				String data = null;
+				try {
+					String clientAddress = cs.getSocket().getInetAddress().getHostAddress();
+					
+			        System.out.println("\r\nNew connection from " + clientAddress);
+			        
+			        BufferedReader in = new BufferedReader(
+			                new InputStreamReader(cs.getSocket().getInputStream()));        
+			        while ( (data = in.readLine()) != null ) {
+			            System.out.println("\r\nMessage from " + clientAddress + ": " + data);
+			        }
+			        
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				}
+				}).start(); 
+			
+			
 		}else if(nbtn==3) {  //UDP client
-			System.out.println("UDP client sending..."+message);
-			udpClient.sending(message);
+			new Thread(new Runnable() {
+				@Override
+				public void run() {
+					DatagramSocket receiveSocket = null;
+					try {  
+			            while(true){  
+			                byte[] buf = new byte[1024];  
+			                DatagramPacket dp = new DatagramPacket(buf, buf.length);  
+			                receiveSocket.receive(dp);  
+			                String data = new String(dp.getData(), 0, dp.getLength());  
+			                
+			                chatHistory.setText(chatHistory.getText()+"\\r\\n "+dp.getAddress().getHostAddress()+":"+data);
+			                System.out.println("Other:" + data);  
+			            }  
+			        } catch (IOException e) {  
+			            System.out.println("receive fail");  
+			        }
+					}
+				}).start(); 
 		}/*else if(nbtn==0) {  //tcp server
 			System.out.println("tcp server sending..."+message);
 			sc.SendInfor(message,messageIP,messagePort);
@@ -157,6 +199,7 @@ public class MainUI {
 			            
 			            messageIP=packet.getAddress().getHostAddress();
 			            messagePort= packet.getPort()+"";
+			            connectedTo.setText(messageIP);
 			            System.out.println("Message from " + packet.getAddress().getHostAddress() + ": " + msg);
 			            chatHistory.setText(chatHistory.getText()+"\\r\\n "+messageIP+":"+msg);
 			        }
@@ -190,7 +233,8 @@ public class MainUI {
 					
 					 messageIP=sc.getClientSocket().getInetAddress().getHostAddress();
 			         messagePort= sc.getClientSocket().getPort()+"";
-			            
+			         connectedTo.setText(messageIP);
+			         
 			        System.out.println("\r\nNew connection from " + clientAddress);
 			        
 			        BufferedReader in = new BufferedReader(
@@ -301,7 +345,7 @@ public class MainUI {
 		lblChooseOneTo.setBounds(88, 67, 160, 23);
 		
 		chatHistory = new JTextField();
-		chatHistory.setBounds(34, 43, 507, 270);
+		chatHistory.setBounds(34, 65, 507, 248);
 		chatHistory.setColumns(10);
 		
 		ip = new JTextField();
@@ -349,6 +393,14 @@ public class MainUI {
 		frame2.getContentPane().add(btnConnect);
 		frame2.getContentPane().add(message);
 		frame2.getContentPane().add(btnSend);
+		
+		JLabel lblConnectedTo = new JLabel("connected to:");
+		lblConnectedTo.setBounds(34, 43, 86, 14);
+		frame2.getContentPane().add(lblConnectedTo);
+		
+		connectedTo = new JLabel("");
+		connectedTo.setBounds(135, 43, 129, 14);
+		frame2.getContentPane().add(connectedTo);
 		
 		frame.getContentPane().add(lblChooseOneTo);
 		frame.getContentPane().add(btnUdpserver);
