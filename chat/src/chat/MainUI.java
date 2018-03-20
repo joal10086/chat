@@ -69,13 +69,6 @@ public class MainUI {
 	 */
 	public MainUI() {
 		initialize();
-		/*startTCPServer();
-		startUDPServer();
-		UDPServerSending();
-		TCPServerSending();
-		
-		UDPClientSending();
-		TCPClientSending();*/
 	}
 	/**
 	 * initiate connection
@@ -121,7 +114,6 @@ public class MainUI {
 			cs.SendInfor(message);
 		}else if(nbtn==3) {  //UDP client
 			System.out.println("UDP client sending..."+message);
-			//udpClient.sending(message);
 			Thread th = new Thread(new Runnable() {
 				@Override
 				public void run() {
@@ -146,7 +138,6 @@ public class MainUI {
 			sc.SendInfor(message,messageIP,messagePort);
 		}else if(nbtn==2) {  //udp server
 			System.out.println("UDP server sending..."+message);
-			//udpServer.sending(message, messageIP, messagePort);
 			Thread th = new Thread(new Runnable() {
 				@Override
 				public void run() {
@@ -174,7 +165,7 @@ public class MainUI {
 	 */
 	public void Receiving() {
 		if(nbtn==1) {//tcp client
-
+			//new  thread for TCP client listening the coming message
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
@@ -200,12 +191,13 @@ public class MainUI {
 			
 			
 		}else if(nbtn==3) {  //UDP client
+			//new  thread for UDP client listening the coming message
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
 					try{
 			            byte[] buffer = new byte[1024];    
-			            DatagramPacket packet =  new DatagramPacket(buffer,buffer.length);   //生成一个packet接收信息
+			            DatagramPacket packet =  new DatagramPacket(buffer,buffer.length);   //new packet for receiving message
 			            while(true){
 			            	UDPClientSocket.receive(packet);
 			                String msg = new String(packet.getData()).trim();
@@ -230,17 +222,21 @@ public class MainUI {
 		}*/
 	}
 	/**
-	 * display message
+	 * display message in textArea
 	 */
 	public void diaplayMsg(String ip,String msg) {
-		if(chatHistory.getLineCount()<10) {
+		// clear content in textArea if content line reaches MAX (eg, 10)
+		if(chatHistory.getLineCount()<10) {  
 			chatHistory.setText(chatHistory.getText()+"\r\n "+messageIP+":"+msg);
 		}else {
 			chatHistory.setText(messageIP+":"+msg);
 			
 		}
 	}
-	public void trh() {
+	/**
+	 * thread instance
+	 */
+	public void trh() {  
 		Thread th = new Thread(new Runnable() {
 			@Override
 			public void run() {
@@ -272,35 +268,6 @@ public class MainUI {
 		        }catch(Exception e){
 		            e.printStackTrace();
 		        }
-				/*try {
-					
-					
-					udpServer = new UDPServer(9090);
-					
-					System.out.println("-- Running UDP Server at " + InetAddress.getLocalHost() + "--");
-					ip.setText(InetAddress.getLocalHost().getHostAddress().toString());
-					port.setText(9090+"");
-			        String msg;
-
-			        while (true) {
-			            
-			            byte[] buf = new byte[256];
-			            DatagramPacket packet = new DatagramPacket(buf, buf.length);
-			            
-			            // blocks until a packet is received
-			            udpServer.getUdpSocket().receive(packet);
-			            msg = new String(packet.getData()).trim();
-			            
-			            messageIP=packet.getAddress().getHostAddress();
-			            messagePort= packet.getPort()+"";
-			            connectedTo.setText(messageIP);
-			            System.out.println("Message from " + packet.getAddress().getHostAddress() + ": " + msg);
-			            chatHistory.setText(chatHistory.getText()+"\\r\\n "+messageIP+":"+msg);
-			        }
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}*/
 			}
 
 		});
@@ -355,8 +322,7 @@ public class MainUI {
 	 * frame change
 	 */
 	public void changeFrame(int x) {
-		/*frame.hide();
-		frame2.show();*/
+		//change UI
 		window.frame.setVisible(false);
 		window.frame2.setVisible(true);
 		
@@ -443,8 +409,6 @@ public class MainUI {
 				changeFrame(nbtn);
 			}
 		});
-		
-		
 		
 		
 		
