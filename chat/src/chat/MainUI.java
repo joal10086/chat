@@ -9,9 +9,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.awt.event.ActionEvent;
@@ -40,12 +44,18 @@ public class MainUI {
 	
 	private static MainUI window;
 	private DatagramSocket UDPServerSocket;
-	private MyServerSocket sc;
-	private MyClientSocket cs;
 	private DatagramSocket UDPClientSocket;
+	/*private MyServerSocket sc;
+	private MyClientSocket cs;*/
+	private ServerSocket TCPServerSocket;
+	private Socket TCPClientSocket;
+	  
+	private  PrintStream serverOut;
+	private  PrintStream clientOut;
 	
 	private String messageIP;
 	private String messagePort;
+	public String receivedMsg = null;
 
 	/**
 	 * Launch the application.
@@ -74,32 +84,27 @@ public class MainUI {
 	 * initiate connection
 	 */
 	private void connectTo(String ip, String port) {
+		System.out.println("connected to:"+ip+","+port);
+		messageIP=ip;
+		messagePort=port;		
+		connectedTo.setText(messageIP+":"+messagePort);
 		if(nbtn==1) {  //tcp client
-			cs = new MyClientSocket();
-			if(cs.GetConnection(ip,port)) { //tcp client connect to tcp server
-				System.out.println("tcp connected to:"+ip+","+port);
-				messageIP=ip;
-				messagePort=port;		
-				connectedTo.setText(messageIP+":"+messagePort);
-			}else {
-				System.out.println("tcp connected failed");
-			}
+			try {
+				TCPClientSocket = new Socket(InetAddress.getByName(ip), Integer.parseInt(port));
+				
+				Receiving();
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} 
 		}else if(nbtn==3) {//udp client
-			System.out.println("udp connected to:"+ip+","+port);
-			messageIP=ip;
-			messagePort=port;		
-			connectedTo.setText(messageIP+":"+messagePort);
 			try {
 				UDPClientSocket  =new DatagramSocket(3030);
 				Receiving();  //listening after initiate UDP client 
 			} catch (SocketException e) {
 				e.printStackTrace();
 			}
-			/*if(udpClient.GetConnection(ip,port)) { //UDP client connect to UDP server
-				
-			}else {
-				System.out.println("tcp connected failed");
-			}*/
 		}
 		
 	}
@@ -111,7 +116,28 @@ public class MainUI {
 	public void Sending(String message) {
 		if(nbtn==1) {//tcp client
 			System.out.println("tcp client sending..."+message);
-			cs.SendInfor(message);
+			Thread th = new Thread(new Runnable() {
+				@Override
+				public void run() {
+					boolean check = true;
+		            diaplayMsg(host,message);
+		            while(check){
+		            	System.out.println("sendng to ip="+TCPClientSocket.getInetAddress()+",port="+TCPClientSocket.getPort());
+		            	PrintWriter out;
+		            	try {
+							//clientOut = new PrintStream(TCPClientSocket.getOutputStream());
+							out = new PrintWriter(TCPClientSocket.getOutputStream(), true);
+							out.println(message);
+					        out.flush();
+						} catch (IOException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+		                //clientOut.print(message);
+						check=false;
+		            }
+				}});
+			th.start();
 		}else if(nbtn==3) {  //UDP client
 			System.out.println("UDP client sending..."+message);
 			Thread th = new Thread(new Runnable() {
@@ -120,12 +146,11 @@ public class MainUI {
 					try{
 			            DatagramPacket packet = null;
 			            boolean check = true;
+			            diaplayMsg(host,message);
 			            while(check){
 			                packet =  new DatagramPacket(message.getBytes(),message.getBytes().length,InetAddress.getByName(messageIP),Integer.valueOf(messagePort));
 			                UDPClientSocket.send(packet);
-			                String str = new String(packet.getData(),0,packet.getLength()).trim();
-			                System.out.println("UDP client sendMessage :" + str+",ip="+messageIP+",port="+messagePort);
-			                diaplayMsg(host,str);
+			                
 			                check=false;
 			            }    
 			        }catch(Exception e){
@@ -135,7 +160,13 @@ public class MainUI {
 			th.start();
 		}else if(nbtn==0) {  //tcp server
 			System.out.println("tcp server sending..."+message);
-			sc.SendInfor(message,messageIP,messagePort);
+			Thread th = new Thread(new Runnable() {
+				@Override
+				public void run() {
+					diaplayMsg(host,message);
+					serverOut.println(message); 
+				}});
+			th.start();
 		}else if(nbtn==2) {  //udp server
 			System.out.println("UDP server sending..."+message);
 			Thread th = new Thread(new Runnable() {
@@ -144,12 +175,10 @@ public class MainUI {
 					try{
 			            DatagramPacket packet = null;
 			            boolean check = true;
+			            diaplayMsg(host,message);
 			            while(check){
 			                packet =  new DatagramPacket(message.getBytes(),message.getBytes().length,InetAddress.getByName(messageIP),Integer.valueOf(messagePort));
 			                UDPServerSocket.send(packet);
-			                String str = new String(packet.getData(),0,packet.getLength()).trim();
-			                System.out.println("UDP server sendMessage :" + str+",ip="+messageIP+",port="+messagePort);
-				            diaplayMsg(host,str);
 			                check=false;
 			            }    
 			        }catch(Exception e){
@@ -159,37 +188,42 @@ public class MainUI {
 			th.start();
 			
 		}
+		
 	}
 	/**
 	 * Receiving message
 	 */
 	public void Receiving() {
 		if(nbtn==1) {//tcp client
-			//new  thread for TCP client listening the coming message
+			//new  thread for TCP client listening to the coming message
 			new Thread(new Runnable() {
 				@Override
 				public void run() {
-			
-				String data = null;
-				try {
-					String clientAddress = cs.getSocket().getInetAddress().getHostAddress();
-					
-			        System.out.println("\r\nNew connection from " + clientAddress);
-			        
-			        BufferedReader in = new BufferedReader(
-			                new InputStreamReader(cs.getSocket().getInputStream()));        
-			        while ( (data = in.readLine()) != null ) {
-			            System.out.println("\r\nMessage from " + clientAddress + ": " + data);
-			        }
-			        
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				}
+					try {   //listening  for incoming message
+							
+					        while(true){  
+					            try{  
+					                BufferedReader buf = new BufferedReader(new InputStreamReader(TCPClientSocket.getInputStream()));  
+					                
+					                receivedMsg =  buf.readLine();
+				                    
+				                    messageIP=TCPClientSocket.getInetAddress().getHostAddress();
+							        messagePort= TCPClientSocket.getPort()+"";
+							        
+							        System.out.println("message received from:ip="+TCPClientSocket.getInetAddress()+",port="+TCPClientSocket.getPort());
+					    			
+							        connectedTo.setText(messageIP+":"+messagePort);
+									diaplayMsg(messageIP,receivedMsg);
+					            }catch(Exception e){  
+					                e.printStackTrace();  
+					            } 
+					        }  
+					        
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
 				}).start(); 
-			
-			
 		}else if(nbtn==3) {  //UDP client
 			//new  thread for UDP client listening the coming message
 			new Thread(new Runnable() {
@@ -200,26 +234,20 @@ public class MainUI {
 			            DatagramPacket packet =  new DatagramPacket(buffer,buffer.length);   //new packet for receiving message
 			            while(true){
 			            	UDPClientSocket.receive(packet);
-			                String msg = new String(packet.getData()).trim();
+			            	receivedMsg = new String(packet.getData()).trim();
 			                
 			                messageIP=packet.getAddress().getHostAddress();
 				            messagePort= packet.getPort()+"";
+				            
 				            connectedTo.setText(messageIP+":"+messagePort);
-				            System.out.println("Message from " + packet.getAddress().getHostAddress() + ": " + msg);
-				            diaplayMsg(messageIP,msg);
+				    		diaplayMsg(messageIP,receivedMsg);
 			            }
 			        }catch(Exception e){
 			            e.printStackTrace();
 			        }
 					}
 				}).start(); 
-		}/*else if(nbtn==0) {  //tcp server
-			System.out.println("tcp server sending..."+message);
-			sc.SendInfor(message,messageIP,messagePort);
-		}else if(nbtn==2) {  //udp server
-			System.out.println("UDP server sending..."+message);
-			udpServer.sending(message, messageIP, messagePort);
-		}*/
+		}
 	}
 	/**
 	 * display message in textArea
@@ -254,7 +282,7 @@ public class MainUI {
 			public void run() {
 				try{
 		            byte[] buffer = new byte[1024];    
-		            DatagramPacket packet =  new DatagramPacket(buffer,buffer.length);   //生成一个packet接收信息
+		            DatagramPacket packet =  new DatagramPacket(buffer,buffer.length);   //packet receiving msg
 		            while(true){
 		            	UDPServerSocket.receive(packet);
 		                String msg = new String(packet.getData()).trim();
@@ -281,29 +309,34 @@ public class MainUI {
 		Thread th = new Thread(new Runnable() {
 			@Override
 			public void run() {
-				String data = null;
 				try {   //listening  for incoming message
-					sc = new MyServerSocket("");
-					sc = sc.startService();
-					//ip & port
-					ip.setText(sc.getSocketAddress().getHostAddress());
-					port.setText(sc.getPort()+"");
+			      //ip & port
+					ip.setText(TCPServerSocket.getInetAddress().getHostAddress());
+					port.setText(TCPServerSocket.getLocalPort()+"");
 					
-					sc.setClientSocket(sc.getServer().accept());
-					String clientAddress = sc.getClientSocket().getInetAddress().getHostAddress();
-					
-					 messageIP=sc.getClientSocket().getInetAddress().getHostAddress();
-			         messagePort= sc.getClientSocket().getPort()+"";
-			         connectedTo.setText(messageIP);
-			         
-			        System.out.println("\r\nNew connection from " + clientAddress);
-			        
-			        BufferedReader in = new BufferedReader(
-			                new InputStreamReader(sc.getClientSocket().getInputStream()));        
-			        while ( (data = in.readLine()) != null ) {
-			            System.out.println("\r\nMessage from " + clientAddress + ": " + data);
-			            chatHistory.setText(chatHistory.getText()+"\\r\\n "+messageIP+":"+data);
-			        }
+			        Socket client = null;  
+			        boolean f = true;  
+			        while(f){  
+			            client = TCPServerSocket.accept();  
+			            try{  
+			                 
+			                BufferedReader buf = new BufferedReader(new InputStreamReader(client.getInputStream()));  
+		                    String str =  buf.readLine();
+		                    
+			                serverOut = new PrintStream(client.getOutputStream()); 
+			                
+			                System.out.println("message received from:ip="+client.getInetAddress()+",port="+client.getPort());
+			    			
+		                    
+		                    messageIP=client.getInetAddress().getHostAddress();
+					        messagePort= client.getPort()+"";
+					        connectedTo.setText(messageIP+":"+messagePort);
+					        
+				            diaplayMsg(messageIP,str);
+			            }catch(Exception e){  
+			                e.printStackTrace();  
+			            } 
+			        }  
 			        
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -326,17 +359,29 @@ public class MainUI {
 		window.frame.setVisible(false);
 		window.frame2.setVisible(true);
 		
+		InetAddress loc;
+		try {
+			loc = InetAddress.getLocalHost();
+			host = loc.getHostAddress();
+		} catch (UnknownHostException e1) {
+			e1.printStackTrace();
+		}
 		if(x==0 || x==2) {
 			if(x==0) {// TCP server 
-				
+				frame2.setTitle("TCP Server");
+				try {
+			        TCPServerSocket =new ServerSocket(0, 1, InetAddress.getByName(host));
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 			}else { // UDP server 
+				frame2.setTitle("UDP Server");
 				try {
 					UDPServerSocket=new DatagramSocket(9090);
-					InetAddress loc = InetAddress.getLocalHost();
-			        host = loc.getHostAddress();
 					ip.setText(host);
 					port.setText(9090+"");
-				} catch (SocketException | UnknownHostException e) {
+				} catch (SocketException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -345,6 +390,11 @@ public class MainUI {
 			ip.setEditable(false);
 			port.setEditable(false);
 		}else if(x==1 || x==3) {
+			if(x==1) {
+				frame2.setTitle("TCP Client");
+			}else {
+				frame2.setTitle("UDP Client");
+			}
 			btnConnect.setEnabled(true);
 			ip.setEditable(true);
 			port.setEditable(true);
