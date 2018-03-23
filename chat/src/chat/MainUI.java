@@ -7,10 +7,8 @@ import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
-import java.io.PrintWriter;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -23,7 +21,6 @@ import javax.swing.JLabel;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 
-import chat.MyServerSocket;
 import java.awt.Font;
 
 public class MainUI {
@@ -45,18 +42,18 @@ public class MainUI {
 	private static MainUI window;
 	private DatagramSocket UDPServerSocket;
 	private DatagramSocket UDPClientSocket;
-	/*private MyServerSocket sc;
-	private MyClientSocket cs;*/
 	private ServerSocket TCPServerSocket;
 	private Socket TCPClientSocket;
 	  
 	private  PrintStream serverOut;
 	private  PrintStream clientOut;
 	
+	
 	private String messageIP;
 	private String messagePort;
 	public String receivedMsg = null;
-
+	
+private boolean test=false;
 	/**
 	 * Launch the application.
 	 */
@@ -91,7 +88,6 @@ public class MainUI {
 		if(nbtn==1) {  //tcp client
 			try {
 				TCPClientSocket = new Socket(InetAddress.getByName(ip), Integer.parseInt(port));
-				
 				Receiving();
 			} catch (UnknownHostException e) {
 				e.printStackTrace();
@@ -112,10 +108,12 @@ public class MainUI {
 	
 	/**
 	 * sending message
+	 * @throws IOException 
 	 */
-	public void Sending(String message) {
+	public void Sending(String message) throws IOException {
 		if(nbtn==1) {//tcp client
 			System.out.println("tcp client sending..."+message);
+			
 			Thread th = new Thread(new Runnable() {
 				@Override
 				public void run() {
@@ -123,17 +121,18 @@ public class MainUI {
 		            diaplayMsg(host,message);
 		            while(check){
 		            	System.out.println("sendng to ip="+TCPClientSocket.getInetAddress()+",port="+TCPClientSocket.getPort());
-		            	PrintWriter out;
+		            	if(test) {
+		            		connectTo(ip.getText(),port.getText());
+		            	}
+		            	test=true;
 		            	try {
-							//clientOut = new PrintStream(TCPClientSocket.getOutputStream());
-							out = new PrintWriter(TCPClientSocket.getOutputStream(), true);
-							out.println(message);
-					        out.flush();
+							clientOut = new PrintStream(TCPClientSocket.getOutputStream());
 						} catch (IOException e) {
-							// TODO Auto-generated catch block
 							e.printStackTrace();
 						}
-		                //clientOut.print(message);
+						clientOut.println(message);
+						System.out.println("sendn");
+		                
 						check=false;
 		            }
 				}});
@@ -164,7 +163,7 @@ public class MainUI {
 				@Override
 				public void run() {
 					diaplayMsg(host,message);
-					serverOut.println(message); 
+					serverOut.println(message+"\n"); 
 				}});
 			th.start();
 		}else if(nbtn==2) {  //udp server
@@ -204,8 +203,10 @@ public class MainUI {
 					        while(true){  
 					            try{  
 					                BufferedReader buf = new BufferedReader(new InputStreamReader(TCPClientSocket.getInputStream()));  
-					                
+					                clientOut = new PrintStream(TCPClientSocket.getOutputStream());
+					               
 					                receivedMsg =  buf.readLine();
+					                clientOut.println("echo,"+receivedMsg);
 				                    
 				                    messageIP=TCPClientSocket.getInetAddress().getHostAddress();
 							        messagePort= TCPClientSocket.getPort()+"";
@@ -262,18 +263,6 @@ public class MainUI {
 		}
 	}
 	/**
-	 * thread instance
-	 */
-	public void trh() {  
-		Thread th = new Thread(new Runnable() {
-			@Override
-			public void run() {
-				
-			}});
-		th.start();
-				
-	}
-	/**
 	 * start UDP server
 	 */
 		public void startUDPServer() {
@@ -297,7 +286,6 @@ public class MainUI {
 		            e.printStackTrace();
 		        }
 			}
-
 		});
 		th.start();// Thread started	
 			
@@ -372,7 +360,6 @@ public class MainUI {
 				try {
 			        TCPServerSocket =new ServerSocket(0, 1, InetAddress.getByName(host));
 				} catch (Exception e) {
-					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
 			}else { // UDP server 
@@ -502,7 +489,11 @@ public class MainUI {
 		btnSend.setBounds(321, 323, 71, 23);
 		btnSend.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
-				Sending(message.getText());
+				try {
+					Sending(message.getText());
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
 		});
 		frame.getContentPane().setLayout(null);
