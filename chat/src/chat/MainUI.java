@@ -208,13 +208,16 @@ private boolean test=false;
 					                receivedMsg =  buf.readLine();
 					                clientOut.println("echo,"+receivedMsg);
 				                    
-				                    messageIP=TCPClientSocket.getInetAddress().getHostAddress();
-							        messagePort= TCPClientSocket.getPort()+"";
 							        
 							        System.out.println("message received from:ip="+TCPClientSocket.getInetAddress()+",port="+TCPClientSocket.getPort());
 					    			
-							        connectedTo.setText(messageIP+":"+messagePort);
-									diaplayMsg(messageIP,receivedMsg);
+							        if(!(null==receivedMsg || "".equals(receivedMsg))) {
+							        	messageIP=TCPClientSocket.getInetAddress().getHostAddress();
+								        messagePort= TCPClientSocket.getPort()+"";
+								        
+								        connectedTo.setText(messageIP+":"+messagePort);
+										diaplayMsg(messageIP,receivedMsg);
+							        }
 					            }catch(Exception e){  
 					                e.printStackTrace();  
 					            } 
